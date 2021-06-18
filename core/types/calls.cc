@@ -2937,6 +2937,26 @@ public:
     }
 } Array_zip;
 
+class Hash_compact : public IntrinsicMethod {
+public:
+    void apply(const GlobalState &gs, const DispatchArgs &args, DispatchResult &res) const override {
+        TypePtr keyType;
+        TypePtr valueType;
+        if (auto *ap = cast_type<AppliedType>(args.thisType)) {
+            ENFORCE(ap->klass == Symbols::Hash() || ap->klass.data(gs)->derivesFrom(gs, Symbols::Hash()));
+            ENFORCE(!ap->targs.empty());
+            keyType = ap->targs[0];
+            valueType = ap->targs[1];
+        } else {
+            ENFORCE(false, "Hash#compact on unexpected type: {}", args.selfType.show(gs));
+        }
+        auto nonNilableValueType = Types::approximateSubtract(gs, valueType, Types::nilClass());
+        vector<TypePtr> tupleArgs{keyType, nonNilableValueType};
+        vector<TypePtr> targs{keyType, nonNilableValueType, make_type<TupleType>(move(tupleArgs))};
+        res.returnType = make_type<AppliedType>(Symbols::Hash(), move(targs));
+    }
+} Hash_compact;
+
 class Kernel_proc : public IntrinsicMethod {
 public:
     void apply(const GlobalState &gs, const DispatchArgs &args, DispatchResult &res) const override {
@@ -3080,6 +3100,8 @@ const vector<Intrinsic> intrinsicMethods{
     {Symbols::Array(), Intrinsic::Kind::Instance, Names::product(), &Array_product},
     {Symbols::Array(), Intrinsic::Kind::Instance, Names::compact(), &Array_compact},
     {Symbols::Array(), Intrinsic::Kind::Instance, Names::zip(), &Array_zip},
+
+    {Symbols::Hash(), Intrinsic::Kind::Instance, Names::compact(), &Hash_compact},
 
     {Symbols::Kernel(), Intrinsic::Kind::Instance, Names::proc(), &Kernel_proc},
     {Symbols::Kernel(), Intrinsic::Kind::Instance, Names::lambda(), &Kernel_proc},
